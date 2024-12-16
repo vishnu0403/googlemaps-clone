@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maps Clone</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+</head>
+<body>
+    <div id="map"></div>
+    <div class="controls">
+        <input type="text" id="origin" placeholder="Origin Latitude, Longitude">
+        <input type="text" id="destination" placeholder="Destination Latitude, Longitude">
+        <button id="calculate">Calculate Route</button>
+        <p id="distance">Distance: </p>
+    </div>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        const map = L.map('map').setView([12.9715987, 77.5945627], 12); // Centered on Bengaluru
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19
+        }).addTo(map);
+
+        document.getElementById('calculate').addEventListener('click', async () => {
+            const originInput = document.getElementById('origin').value.split(',');
+            const destinationInput = document.getElementById('destination').value.split(',');
+
+            const origin = [parseFloat(originInput[0]), parseFloat(originInput[1])];
+            const destination = [parseFloat(destinationInput[0]), parseFloat(destinationInput[1])];
+
+            const response = await fetch('/shortest_path', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ origin, destination })
+            });
+
+            const data = await response.json();
+
+            // Add the path to the map
+            const pathCoords = data.path;
+            const polyline = L.polyline(pathCoords, { color: 'blue' }).addTo(map);
+
+            // Add markers for origin and destination
+            L.marker(pathCoords[0], { icon: L.icon({ iconUrl: 'https://unpkg.com/leaflet/dist/images/marker-icon.png' }) }).addTo(map).bindPopup('Origin').openPopup();
+            L.marker(pathCoords[pathCoords.length - 1], { icon: L.icon({ iconUrl: 'https://unpkg.com/leaflet/dist/images/marker-icon.png' }) }).addTo(map).bindPopup('Destination');
+
+            // Fit map bounds to the route
+            map.fitBounds(polyline.getBounds());
+
+            // Display the distance
+            const distanceElement = document.getElementById('distance');
+            distanceElement.textContent = `Distance: ${(data.distance / 1000).toFixed(2)} km`;
+        });
+    </script>
+</body>
+</html>
